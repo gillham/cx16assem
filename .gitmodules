@@ -1,0 +1,3 @@
+[submodule "prog8reu"]
+	path = prog8reu
+	url = https://github.com/gillham/prog8reu.git
