@@ -23,9 +23,10 @@ instructions {
     asmsub  match(uword mnemonic_ptr @AY) -> uword @AY {
         ; -- input: mnemonic_ptr in AY,   output:  pointer to instruction info structure or $0000 in AY
         %asm {{
-            phx
             sta  P8ZP_SCRATCH_W1
             sty  P8ZP_SCRATCH_W1+1
+            txa
+            pha
             ldy  #1
             lda  (P8ZP_SCRATCH_W1),y
             and  #$7f       ; lowercase
@@ -42,11 +43,18 @@ instructions {
             lda  (P8ZP_SCRATCH_W1),y
             and  #$7f       ; lowercase
             sta  cx16.r5    ; fifth letter in R5 (should always be zero or whitespace for a valid mnemonic)
-            ply             ; third letter in Y
-            lda  (P8ZP_SCRATCH_W1)
+            ldy  #0
+            lda  (P8ZP_SCRATCH_W1),y
             and  #$7f       ; lowercase, first letter in A
+            sta  P8ZP_SCRATCH_W1
+            pla
+            tay             ; third letter (needs to be in Y)
+            lda  P8ZP_SCRATCH_W1
             jsr  gen_get_opcode_info
-            plx
+            sta  P8ZP_SCRATCH_W1
+            pla
+            tax
+            lda  P8ZP_SCRATCH_W1
             rts
         }}
     }
@@ -67,7 +75,8 @@ instructions {
             ;lda  #13
             ;jsr  cbm.CHROUT
 
-            lda  (P8ZP_SCRATCH_W2)
+            ldy  #0
+            lda  (P8ZP_SCRATCH_W2),y
             beq  _multi_addrmodes
             ldy  #1
             lda  (P8ZP_SCRATCH_W2),y
@@ -87,7 +96,8 @@ _multi_addrmodes
             lda  (P8ZP_SCRATCH_W2),y    ; check opcode for addr.mode
             bne  _valid
             ; opcode $00 usually means 'invalid' but for "brk" it is actually valid so check for "brk"
-            lda  (P8ZP_SCRATCH_W1)
+            ldy  #0
+            lda  (P8ZP_SCRATCH_W1),y
             and  #$7f       ; lowercase
             cmp  #'b'
             bne  _not_found

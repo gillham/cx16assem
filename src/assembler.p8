@@ -11,6 +11,9 @@
 %zeropage basicsafe
 %option no_sysinit
 
+%import reu
+%import reucompat
+
 main {
 
     ubyte text_color = 1
@@ -19,7 +22,11 @@ main {
 
     sub start() {
         str commandline = "?" * max_filename_length
-        ;; diskio.fastmode(3)      ; fast loads+saves
+        if reu.init() == 0 {
+            txt.print("\nerror: an reu is required.\n")
+            sys.exit(1)
+        }
+        c64.banks(6)
         print_intro()
         previous_successful_filename[0] = 0
         diskio.list_filename[0] = 0
@@ -139,12 +146,13 @@ main {
     sub cli_command_m() {
         txt.print("Entering the machine language monitor.\n")
         txt.print("(use 'g' without args, to return directly back into the assembler)\n")
-        cx16.monitor()
+        txt.print("Actually there is no monitor support right now on C64...\n")
+        ;cx16.monitor()
         txt.nl()
     }
 
     sub print_intro() {
-        txt.color2(text_color, background_color)
+        ;txt.color2(text_color, background_color)
         txt.clear_screen()
         txt.lowercase()
         if background_color==13
@@ -152,22 +160,27 @@ main {
         else
             txt.color(13)
 
-        txt.print("\n\x12Commander-x16 65c02 file based assembler\x92\n https://github.com/irmen/cx16assem\n\n")
+        txt.print("\n\x12Commander-x16 65c02 file based assembler\x92\n https://github.com/irmen/cx16assem\n")
+;        txt.print("Ported to C64...\n\n")
         txt.color(text_color)
         txt.print("Available commands:\n\n" +
-        "  $            - lists *.asm files on disk\n" +
-        "  a <filename> - assemble file (no argument = assemble previous file)\n" +
-        "  d <filename> - display contents of file\n" +
-        "  e <filename> - start x16edit to edit the file\n")
-        txt.print("  r <filename> - load and run file, use previously saved file if unspecified\n" +
-        "  x <filename> - combination of a+r (assemble, save, execute)\n" +
-        "  # <number>   - select disk device number (8 or 9, default=8)\n")
-        txt.print("  t            - cycle text color\n" +
-        "  b            - cycle background color\n"+
-        "  m            - enter machine language monitor\n"+
-        "  ? or h       - print this help\n" +
-        "  =            - self-test\n" +
-        "  q            - quit\n")
+        " $      - lists *.asm files on disk\n" +
+        " a file - assemble file (no argument =\n" +
+        "          assemble previous file)\n" +
+        " d file - display contents of file\n" +
+        " e file - start none to edit a file\n")
+        txt.print(" r file - load and run file, previously\n" +
+        "          saved file if unspecified\n" +
+        " x file - combination of a+r\n" +
+        "          (assemble, save, execute)\n" +
+        " # num  - select disk device number\n" +
+        "          (8 or 9, default=8)\n")
+        txt.print(" t      - cycle text color\n" +
+        " b      - cycle background color\n"+
+        " m      - use machine language monitor\n"+
+        " ? or h - print this help\n" +
+        " =      - self-test\n" +
+        " q      - quit\n")
     }
 
     sub self_test() {
@@ -248,21 +261,22 @@ main {
 
     sub edit_file(uword filename) {
         ; activate rom based x16edit, see https://github.com/stefan-b-jakobsson/x16-edit/tree/master/docs
-        ubyte x16edit_bank = cx16.search_x16edit()
+        ;ubyte x16edit_bank = cx16.search_x16edit()
+        ubyte x16edit_bank = 255    ; not found...
         if x16edit_bank<255 {
-            sys.enable_caseswitch()     ; workaround for character set issue in X16Edit 0.7.1
-            ubyte filename_length = 0
-            if filename!=0
-                filename_length = strings.length(filename)
-            ubyte old_bank = cx16.getrombank()
-            cx16.rombank(x16edit_bank)
-            cx16.x16edit_loadfile_options(1, 255, filename,
-                mkword(%00000011, filename_length),         ; auto-indent and word-wrap enable
-                mkword(80, 4),          ; wrap and tabstop
-                mkword(background_color<<4 | text_color, diskio.drivenumber),
-                mkword(0,0))
-            cx16.rombank(old_bank)
-            sys.disable_caseswitch()
+;            sys.enable_caseswitch()     ; workaround for character set issue in X16Edit 0.7.1
+;            ubyte filename_length = 0
+;            if filename!=0
+;                filename_length = strings.length(filename)
+;            ubyte old_bank = cx16.getrombank()
+;            cx16.rombank(x16edit_bank)
+;            cx16.x16edit_loadfile_options(1, 255, filename,
+;                mkword(%00000011, filename_length),         ; auto-indent and word-wrap enable
+;                mkword(80, 4),          ; wrap and tabstop
+;                mkword(background_color<<4 | text_color, diskio.drivenumber),
+;;                mkword(0,0))
+;            cx16.rombank(old_bank)
+;            sys.disable_caseswitch()
         } else {
             err.print("error: no x16edit found in rom")
             sys.wait(180)
@@ -496,6 +510,9 @@ parser {
         }
 
         while filereader.next_line(parser.input_line) {
+;            ; debug
+;            txt.print(parser.input_line)
+;            txt.nl()
             if not parser.process_line() {
                 if not error_was_reported {
                     txt.print("\n\x12error was in file: ")
@@ -953,53 +970,19 @@ parser {
         return false
     }
 
-    asmsub str_is1(uword st @R0, ubyte char @A) clobbers(Y) -> bool @A {
-        %asm {{
-            cmp  (cx16.r0)
-            bne  +
-            ldy  #1
-            lda  (cx16.r0),y
-            bne  +
-            lda  #1
-            rts
-+           lda  #0
-            rts
-        }}
+    sub str_is1(uword st, ubyte char) -> bool {
+        return (st[0] == char) and (st[1] == $00)
     }
 
-    asmsub str_is2(uword st @R0, uword compare @AY) clobbers(Y) -> bool @A {
-        %asm {{
-            sta  P8ZP_SCRATCH_W1
-            sty  P8ZP_SCRATCH_W1+1
-            ldy  #0
-            jmp  p8s_str_is3._is_2_entry
-        }}
+    sub str_is2(uword st, uword compare) -> bool {
+        if st[0] != compare[0] return false
+        return (st[1] == compare[1]) and (st[2] == $00)
     }
 
-    asmsub str_is3(uword st @R0, uword compare @AY) clobbers(Y) -> bool @A {
-        %asm {{
-            sta  P8ZP_SCRATCH_W1
-            sty  P8ZP_SCRATCH_W1+1
-            lda  (cx16.r0)
-            cmp  (P8ZP_SCRATCH_W1)
-            bne  +
-            ldy  #1
-_is_2_entry
-            lda  (cx16.r0),y
-            cmp  (P8ZP_SCRATCH_W1),y
-            bne  +
-            iny
-            lda  (cx16.r0),y
-            cmp  (P8ZP_SCRATCH_W1),y
-            bne  +
-            iny
-            lda  (cx16.r0),y
-            bne  +
-            lda  #1
-            rts
-+           lda  #0
-            rts
-        }}
+    sub str_is3(uword st, uword compare) -> bool {
+        if st[0] != compare[0] return false
+        if st[1] != compare[1] return false
+        return st[2] == compare[2]
     }
 
     sub str_trimleft(uword st) -> uword {

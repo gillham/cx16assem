@@ -108,6 +108,7 @@ filereader {
     }
 
     sub next_line(uword buffer) -> bool {
+        ubyte bufindex  ; index into buffer
         bool lines_exhausted = eofs[file_stack_ptr]
 
         ; copies the next line from line_ptr into buffer
@@ -116,58 +117,41 @@ filereader {
         if lines_exhausted
             return false
         cx16.r0 = line_ptrs[file_stack_ptr]
-        cx16.rambank(line_banks[file_stack_ptr])   ; set RAM bank, have to do this every time because kernal keeps resetting it
-        %asm {{
-            phx
-            lda  p8v_buffer
-            ldy  p8v_buffer+1
-            sta  P8ZP_SCRATCH_W2
-            sty  P8ZP_SCRATCH_W2+1
-            ldy  #0             ; y = index into output buffer
-_charloop
-            lda  (cx16.r0)
-            tax
-            inc  cx16.r0L
-            bne  +
-            inc  cx16.r0H
-+           lda  cx16.r0H
-            cmp  #$c0
-            bne  _processchar
-            ; bank overflow, switch to next bank
-            phy
-            ldy  p8v_file_stack_ptr
-            lda  p8v_line_banks,y
-            ina
-            sta  p8v_line_banks,y
-            sta  $00        ; set new RAM bank
-            ply
-            stz  cx16.r0L
-            lda  #$a0
-            sta  cx16.r0H   ; at $a000 again
-_processchar
-            txa
-            bne  +
-            ; end of file
-            inc  p8v_lines_exhausted
-            bra  _eol
-+           cmp  #10
-            beq  _eol
-            cmp  #13
-            beq  _eol
-            sta  (P8ZP_SCRATCH_W2),y
-            iny
-            bra  _charloop
-_eol        lda  #0
-            sta  (P8ZP_SCRATCH_W2),y
-            ina
-_return     ; remember the line pointer for next call
-            sta  cx16.r1L       ; return value t/f
-            plx
-        }}
+        ; set RAM bank, have to do this every time because kernal keeps resetting it
+        cx16.rambank(line_banks[file_stack_ptr])
+
+        repeat {
+            ; check if we need to increment the bank
+            if cx16.r0H == $c0 {
+                ; increment line_banks for this file
+                line_banks[file_stack_ptr]++
+                ; switch to new bank value aka next bank
+                cx16.rambank(line_banks[file_stack_ptr])
+                ; reset bank pointer to $a000
+                cx16.r0 = $a000
+            }
+            ; check next bank byte for $00 (EOF) or $0a/$0d (EOL)
+            when @(cx16.r0) {
+                $00         -> {
+                    lines_exhausted = true  ; end of file
+                    break                   ; exit repeat
+                    }
+                $0a, $0d    -> {
+                    buffer[bufindex] = 0    ; end of line
+                    cx16.r0++               ; advance pointer over EOL byte
+                    break                   ; exit repeat
+                    }
+                else        -> {
+                    buffer[bufindex] = @(cx16.r0)
+                }
+            }
+            bufindex++
+            cx16.r0++
+        }
         eofs[file_stack_ptr] = lines_exhausted
         line_ptrs[file_stack_ptr] = cx16.r0
         current_lines[file_stack_ptr]++
-        return cx16.r1L as bool
+        return not lines_exhausted
     }
 
     ; returns true if the file's bytes can be accessed via next_byte(), false otherwise
@@ -187,7 +171,7 @@ _return     ; remember the line pointer for next call
     ubyte @shared incbin_end_bank
     uword @shared incbin_end_addr
 
-    asmsub next_byte() -> ubyte @A, bool @Pc {
+    asmsub next_byte() clobbers(Y) -> ubyte @A, bool @Pc {
         %asm {{
             lda  p8v_incbin_bank
             cmp  p8v_incbin_end_bank
@@ -202,12 +186,15 @@ _return     ; remember the line pointer for next call
             sec                 ; end of file
             rts
 _more       lda  p8v_incbin_bank
-            sta  $0             ; make sure to set the ram bank again because other code changes it
+            sta  p8b_reu.p8s_bank.p8v_banknum
+            jsr  p8b_reu.p8s_bank
+            ;sta  $0             ; make sure to set the ram bank again because other code changes it
             lda  p8v_incbin_addr
             sta  P8ZP_SCRATCH_W1
             lda  p8v_incbin_addr+1
             sta  P8ZP_SCRATCH_W1+1
-            lda  (P8ZP_SCRATCH_W1)
+            ldy #0
+            lda  (P8ZP_SCRATCH_W1),y
             pha
             inc  p8v_incbin_addr
             bne  +
@@ -250,7 +237,7 @@ fileregistry {
 
     sub init() {
         num_files = 0
-        next_load_bank = 1              ; bank 0 is used by the kernal
+        next_load_bank = 1         ; cx16.rambanks() is REU only on C64. Leave bank 0 reserved.
         next_load_address = $a000
         names_ptr = names
     }

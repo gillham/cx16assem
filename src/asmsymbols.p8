@@ -68,7 +68,8 @@ symbols {
 ;        txt.print_uwhex(sys.progend(), true)
 ;        txt.nl()
 
-        if sys.progend() >= $9f00-max_name_len*2 {
+        ;if sys.progend() >= $9f00-max_name_len*2 {
+        if sys.progend() >= $a000-max_name_len*2 {
             txt.print("\n\nerror: symbol table size exceeds free system ram: ")
             txt.print_uwhex(sys.progend(), true)
             txt.nl()

@@ -3,3 +3,9 @@
 *.prg
 *.asm
 *.vice-mon-list
+reu-image.bin
+run*.sh
+gen*.py
+*.list
+*.d81
+disk.sh

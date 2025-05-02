@@ -12,8 +12,8 @@ run:  assembler.prg
 	mcopy -D o $< x:ASSEMBLER
 	PULSE_LATENCY_MSEC=20 x16emu -sdcard ~/cx16sdcard.img -scale 2 -quality best -run -prg $<
 
-assembler.prg: src/assembler.p8 src/filereader.p8 src/asmsymbols.p8 src/asmoutput.p8 src/expression.p8 src/opcodes.asm
-	$(PROG8C) $< -target cx16
+assembler.prg: src/assembler.p8 src/filereader.p8 src/asmsymbols.p8 src/asmoutput.p8 src/expression.p8 src/opcodes.asm src/instructions.p8 src/reu.p8 src/reucompat.p8
+	$(PROG8C) $< -varshigh 1 -asmlist -target c64
 
 src/opcodes.asm:  src/gen_opcodes.py
 	$(PYTHON) $< --parser-tree > $@
