@@ -9,10 +9,11 @@
 %import expression
 %import errors
 %zeropage basicsafe
-%option no_sysinit
+;%option no_sysinit
 
 %import reu
-%import reucompat
+%import reucompat128
+;%memtop $9fff
 
 main {
 
@@ -26,7 +27,6 @@ main {
             txt.print("\nerror: an reu is required.\n")
             sys.exit(1)
         }
-        c64.banks(6)
         print_intro()
         previous_successful_filename[0] = 0
         diskio.list_filename[0] = 0

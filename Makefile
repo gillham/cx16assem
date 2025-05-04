@@ -13,7 +13,7 @@ run:  assembler.prg
 	PULSE_LATENCY_MSEC=20 x16emu -sdcard ~/cx16sdcard.img -scale 2 -quality best -run -prg $<
 
 assembler.prg: src/assembler.p8 src/filereader.p8 src/asmsymbols.p8 src/asmoutput.p8 src/expression.p8 src/opcodes.asm src/instructions.p8 prog8reu/src/reu.p8 prog8reu/src/reucompat.p8
-	$(PROG8C) $< -varshigh 1 -srcdirs prog8reu/src/ -asmlist -target c64
+	$(PROG8C) $< -srcdirs prog8reu/src/ -asmlist -target c128
 
 src/opcodes.asm:  src/gen_opcodes.py
 	$(PYTHON) $< --parser-tree > $@
