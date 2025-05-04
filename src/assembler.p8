@@ -145,10 +145,14 @@ main {
 
     sub cli_command_m() {
         txt.print("Entering the machine language monitor.\n")
-        txt.print("(use 'g' without args, to return directly back into the assembler)\n")
-        txt.print("Actually there is no monitor support right now on C64...\n")
-        ;cx16.monitor()
-        txt.nl()
+        txt.print("NOTE: 'x' in the monitor drops to basic.\n")
+        txt.print("Press 'm' again for the monitor.\n")
+        txt.print("Any other key to return the assembler)\n")
+        if txt.waitkey() == 'm' {
+            c128.banks(0)
+            call($b003)     ; does not return (YET)
+            ;c128.banks(14)
+        }
     }
 
     sub print_intro() {
