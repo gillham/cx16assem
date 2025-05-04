@@ -18,7 +18,7 @@ main {
 
     ubyte text_color = 1
     ubyte background_color = 11
-    const ubyte max_filename_length = 30
+    const ubyte max_filename_length = 16
 
     sub start() {
         str commandline = "?" * max_filename_length
@@ -26,6 +26,8 @@ main {
             txt.print("\nerror: an reu is required.\n")
             sys.exit(1)
         }
+        ; default to most recently used drive
+        diskio.drivenumber = @($BA)
         c64.banks(6)
         print_intro()
         previous_successful_filename[0] = 0
@@ -73,7 +75,10 @@ main {
                     'x' -> cli_command_x(argptr)
                     '#' -> {
                         if argptr!=0 {
-                            set_drivenumber(argptr[0]-'0')
+                            if argptr[1] !=0
+                                set_drivenumber(10 * (argptr[0]-'0') + argptr[1]-'0')
+                            else
+                                set_drivenumber(argptr[0]-'0')
                         } else {
                             txt.print("current disk drive is ")
                             txt.print_ub(diskio.drivenumber)
@@ -247,7 +252,7 @@ main {
 
     sub set_drivenumber(ubyte nr) {
         when nr {
-            8, 9 -> {
+            8 to 30 -> {
                 diskio.drivenumber = nr
                 txt.print("selected disk drive ")
                 txt.print_ub(nr)
