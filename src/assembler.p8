@@ -19,7 +19,7 @@ main {
 
     ubyte text_color = 1
     ubyte background_color = 11
-    const ubyte max_filename_length = 30
+    const ubyte max_filename_length = 16
 
     sub start() {
         str commandline = "?" * max_filename_length
@@ -27,6 +27,8 @@ main {
             txt.print("\nerror: an reu is required.\n")
             sys.exit(1)
         }
+        ; default to most recently used drive
+        diskio.drivenumber = @($BA)
         print_intro()
         previous_successful_filename[0] = 0
         diskio.list_filename[0] = 0
@@ -73,7 +75,10 @@ main {
                     'x' -> cli_command_x(argptr)
                     '#' -> {
                         if argptr!=0 {
-                            set_drivenumber(argptr[0]-'0')
+                            if argptr[1] !=0
+                                set_drivenumber(10 * (argptr[0]-'0') + argptr[1]-'0')
+                            else
+                                set_drivenumber(argptr[0]-'0')
                         } else {
                             txt.print("current disk drive is ")
                             txt.print_ub(diskio.drivenumber)
@@ -144,10 +149,9 @@ main {
     }
 
     sub cli_command_m() {
-        txt.print("Entering the machine language monitor.\n")
-        txt.print("NOTE: 'x' in the monitor drops to basic.\n")
-        txt.print("Press 'm' again for the monitor.\n")
-        txt.print("Any other key to return the assembler)\n")
+        txt.print("NOTE: monitor 'x' drops to basic.\n")
+        txt.print("Press 'm' for the monitor.\n")
+        txt.print("Any other key cancels)\n")
         if txt.waitkey() == 'm' {
             c128.banks(0)
             call($b003)     ; does not return (YET)
@@ -251,7 +255,7 @@ main {
 
     sub set_drivenumber(ubyte nr) {
         when nr {
-            8, 9 -> {
+            8 to 30 -> {
                 diskio.drivenumber = nr
                 txt.print("selected disk drive ")
                 txt.print_ub(nr)
