@@ -745,9 +745,10 @@ parser {
     }
 
     sub process_directive_org(uword operand) -> bool {
-        ubyte length = conv.any2uword(operand)
-        if length!=0 {
-            output.set_pc(cx16.r15)
+        uword pc
+        pc, cx16.r0L = conv.any2uword(operand)
+        if cx16.r0L!=0 {
+            output.set_pc(pc)
             return true
         }
         err.print("syntax error")
@@ -755,22 +756,24 @@ parser {
     }
 
     sub process_directive_fill(uword operand) -> bool {
-        ubyte length = conv.any2uword(operand)
+        uword fillsize
+        ubyte length
+        fillsize, length = conv.any2uword(operand)
         if length!=0 {
             ubyte fillvalue = 0
-            uword fillsize = cx16.r15
             operand += length
             operand = str_trimleft(operand)
             if @(operand)==',' {
                 operand++
                 operand = str_trimleft(operand)
-                length = conv.any2uword(operand)
+                uword value
+                value, length = conv.any2uword(operand)
                 if length!=0 {
-                    if msb(cx16.r15)!=0 {
+                    if msb(value)!=0 {
                         err.print("value too large")
                         return false
                     }
-                    fillvalue = lsb(cx16.r15)
+                    fillvalue = lsb(value)
                 } else {
                     err.print("syntax error")
                     return false
@@ -790,14 +793,16 @@ parser {
     }
 
     sub proces_directive_byte(uword operand) -> bool {
-        ubyte length = conv.any2uword(operand)
+        uword value
+        ubyte length
+        value, length = conv.any2uword(operand)
         if length!=0 {
-            if msb(cx16.r15)!=0 {
+            if msb(value)!=0 {
                 err.print("value too large")
                 return false
             }
             if phase==2
-                output.emit(lsb(cx16.r15))
+                output.emit(lsb(value))
             else
                 output.inc_pc(0)
             operand += length
@@ -805,15 +810,15 @@ parser {
             while @(operand)==',' {
                 operand++
                 operand = str_trimleft(operand)
-                length = conv.any2uword(operand)
+                value, length = conv.any2uword(operand)
                 if length==0
                     break
-                if msb(cx16.r15)!=0 {
+                if msb(value)!=0 {
                     err.print("value too large")
                     return false
                 }
                 if phase==2
-                    output.emit(lsb(cx16.r15))
+                    output.emit(lsb(value))
                 else
                     output.inc_pc(0)
                 operand += length
@@ -826,11 +831,13 @@ parser {
     }
 
     sub proces_directive_word(uword operand) -> bool {
-        ubyte length = conv.any2uword(operand)
+        uword value
+        ubyte length
+        value, length = conv.any2uword(operand)
         if length!=0 {
             if phase==2 {
-                output.emit(lsb(cx16.r15))
-                output.emit(msb(cx16.r15))
+                output.emit(lsb(value))
+                output.emit(msb(value))
             }
             else
                 output.inc_pc(1)        ; increase pc by 2 effectively (a word)
@@ -839,12 +846,12 @@ parser {
             while @(operand)==',' {
                 operand++
                 operand = str_trimleft(operand)
-                length = conv.any2uword(operand)
+                value, length = conv.any2uword(operand)
                 if length==0
                     break
                 if phase==2 {
-                    output.emit(lsb(cx16.r15))
-                    output.emit(msb(cx16.r15))
+                    output.emit(lsb(value))
+                    output.emit(msb(value))
                 }
                 else
                     output.inc_pc(1)    ; increase pc by 2 effectively (a word)

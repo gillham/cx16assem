@@ -27,7 +27,7 @@ expression {
                     else -> lsbmsb = 0
                 }
                 ; TODO parse rest of operand as an *expression* (in phase 2, should look up any symbols used)
-                parsed_len = conv.any2uword(operand_ptr)
+                cx16.r15, parsed_len = conv.any2uword(operand_ptr)
                 if parsed_len!=0 {
                     operand_ptr += parsed_len
                     if @(operand_ptr)==0 {
@@ -63,7 +63,7 @@ expression {
                 ; various forms of indirect
                 operand_ptr++
                 ; TODO parse rest of operand as an *expression* with closing parenthesis at the end (in phase 2, should look up any symbols used)
-                parsed_len = conv.any2uword(operand_ptr)
+                cx16.r15, parsed_len = conv.any2uword(operand_ptr)
                 if parsed_len!=0
                     return operand_determine_indirect_addrmode(operand_ptr + parsed_len)
 
@@ -83,7 +83,7 @@ expression {
             '$', '%', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                 ; address optionally followed by ,x or ,y or ,address
                 ; TODO parse rest of operand as an *expression*, optionally followed by that suffix (in phase 2, should look up any symbols used)
-                parsed_len = conv.any2uword(operand_ptr)
+                cx16.r15, parsed_len = conv.any2uword(operand_ptr)
                 if parsed_len!=0
                     return operand_determine_abs_or_zp_addrmode(operand_ptr + parsed_len)
                 return instructions.am_Invalid
@@ -143,13 +143,15 @@ expression {
         ;   value <oper> value  (operator +/-/*/<</>>)
         ; returns success and value in cx16.r15
         uword @requirezp expr_ptr = expr
+        return false
 
         sub parse_single_value() -> ubyte {
             ; this parses a single number or symbol into cx16.r15, returns 0 if fail or else number of consumed characters
             when(@(expr_ptr)) {
                 '$', '%', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                     ; hex bin or decimal number
-                    return conv.any2uword(expr_ptr)
+                    cx16.r15, cx16.r0L = conv.any2uword(expr_ptr)
+                    return cx16.r0L
                 }
                 '*' -> {
                     ; current program counter value
