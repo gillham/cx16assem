@@ -32,7 +32,7 @@ filereader {
             err.print("load error")
             return false
         }
-        cx16.r1 = diskio.load_size(start_bank, address, cx16.r1)
+        cx16.r1 = lsw(diskio.load_size(start_bank, address, cx16.r1))
         txt.spc()
         txt.print_uw(cx16.r1)
         txt.print(" bytes.\n")

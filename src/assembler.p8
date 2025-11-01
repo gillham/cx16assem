@@ -392,16 +392,16 @@ main {
                 err.print("name is same as one of the source files")
                 return
             }
-            output_filename = main.start.commandline
+            void strings.copy(main.start.commandline, output_filename)
         } else {
             ; choose automatic output filename based on the source file name
             strings.right(previous_successful_filename, 4, output_filename)
             void strings.lower(output_filename)
             if output_filename==".asm" or output_filename==".txt" or output_filename==".src" {
-                output_filename = previous_successful_filename
+                void strings.copy(previous_successful_filename, output_filename)
                 output_filename[strings.length(output_filename) - 4] = 0  ; strip off the existing suffix
             } else {
-                output_filename = previous_successful_filename
+                void strings.copy(previous_successful_filename, output_filename)
                 void strings.copy(".prg", &output_filename + strings.length(output_filename))  ; just add .prg suffix to not overwrite
             }
         }
@@ -436,7 +436,7 @@ main {
             }
 
             diskio.f_close_w()
-            diskio.list_filename = output_filename   ; keep the filename we just saved to
+            void strings.copy(output_filename, diskio.list_filename) ; keep the filename we just saved to
             return
         }
 
